@@ -14,3 +14,4 @@ dependencies:
   - huggingface_hub=0.24.6
   - pip:
     - opencv-python==4.11.0.86
+    - label_studio==1.13.1
