@@ -1,0 +1,11 @@
+# Do not read jupyter notebooks
+*.ipynb_checkpoints/
+*.ipynb
+# Avoid reading config files
+config.json
+# Avoid reading images
+*.png
+*.jpg
+*.jpeg
+# Avoid reading key slides
+*.key
