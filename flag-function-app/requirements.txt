@@ -1,0 +1,17 @@
+azure-functions==1.15.0
+azure-storage-blob==12.24.1
+openai==1.63.0
+requests==2.32.3
+##python==3.8.8
+#pip==24.3.1
+#jupyter==1.0.0
+##jupyter-core=5.7.2
+numpy==1.26.4
+#pandas==2.0.3
+#scikit-learn==1.3.0
+#matplotlib==3.7.2
+#huggingface_hub==0.24.6
+opencv-python==4.11.0.86
+#label_studio==1.13.1
+#openai==1.62.0 # already above
+#azure-storage-blob==12.24.1 # already above
