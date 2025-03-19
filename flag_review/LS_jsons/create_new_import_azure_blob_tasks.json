@@ -1,0 +1,13 @@
+{
+  "regex_filter": ".*\\.json$",
+  "use_blob_urls": false,
+  "presign": false,
+  "presign_ttl": 1,
+  "title": "Import Exported Flags",
+  "description": "Politikea AZ Storage for created flags.",
+  "project": 1,
+  "container": "<YOUR_CONTAINER_NAME>",
+  "prefix": "task_data_v2",
+  "account_name": "<AZURE_STORAGE_ACCOUNT>",
+  "account_key": "<AZURE_STORAGE_KEY>"
+}

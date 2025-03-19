@@ -1,0 +1,10 @@
+{
+  "can_delete_objects": true,
+  "title": "pk-flags-az-storage-export",
+  "description": "Politikea AZ Storage to save URLs & annotations.",
+  "project": 1,
+  "container": "<YOUR_CONTAINER_NAME>",
+  "prefix": "label-studio-labels",
+  "account_name": "<AZURE_STORAGE_ACCOUNT>",
+  "account_key": "<AZURE_STORAGE_KEY>"
+}

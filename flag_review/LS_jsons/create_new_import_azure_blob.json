@@ -1,0 +1,13 @@
+{
+  "regex_filter": ".*\\.png$",
+  "use_blob_urls": true,
+  "presign": false,
+  "presign_ttl": 1,
+  "title": "Get New Flags Storage",
+  "description": "Politikea AZ Storage for created flags.",
+  "project": 1,
+  "container": "<YOUR_CONTAINER_NAME>",
+  "prefix": "",
+  "account_name": "<AZURE_STORAGE_ACCOUNT>",
+  "account_key": "<AZURE_STORAGE_KEY>"
+}

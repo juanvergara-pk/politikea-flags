@@ -1,0 +1,17 @@
+{
+    "id": 1,
+    "title": "Review Flags",
+    "description": "Review Politikea Flags",
+    "label_config": "<View><Image name=\"image\" value=\"$image\"/><Choices name=\"choice\" toName=\"image\"><Choice value=\"Good flag\"/><Choice value=\"Unappealing flag\"/><Choice value=\"Has borders\"/></Choices></View>",
+    "expert_instruction": "Label valid flags",
+    "show_instruction": true,
+    "show_skip_button": true,
+    "enable_empty_annotation": true,
+    "show_annotation_history": true,
+    "reveal_preannotations_interactively": true,
+    "show_collab_predictions": true,
+    "maximum_annotations": 0,
+    "color": "#FFFFFF",
+    "control_weights": {},
+    "special_characters":"\/\r\n\t"
+}
