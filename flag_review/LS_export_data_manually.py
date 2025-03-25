@@ -3,9 +3,11 @@ import os
 from datetime import datetime
 import json
 import subprocess
-from config import load_json_file
 from azure.storage.blob import BlobServiceClient
-from config import load_env_vars
+from config import load_json_file, load_env_vars
+
+# Name tasks using Task ID and setting 4 leading zeroes.
+TASK_NAME_F = lambda task_id: f"task_data_v2_{task_id:05}.json"
 
 
 def get_tasks_export(export_tasks_json_name = "export_tasks_and_annotations.json", debug=True):
@@ -53,7 +55,8 @@ def get_individual_tasks(debug=True):
     
     return task_data_dict
 
-def aux__overwrite_from_outside(debug=True):
+
+def get_tasks_export_from_azure(azure_export_fn="export_tasks_and_annotations.json", debug=True):
 
     try:
         blob_url = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -75,15 +78,15 @@ def aux__overwrite_from_outside(debug=True):
         # Use the prefix to target the "label_studio_folder" and "subfolder"
         labelstudio_prefix = f"{labelstudio_folder}/"  # Ensure it ends with '/'
 
-
-        export_tasks_blob_client = flag_container_client.get_blob_client(blob="export_tasks_and_annotations.json")
+        # Get the export from azure. Load the exported file.
+        export_tasks_blob_client = flag_container_client.get_blob_client(blob=azure_export_fn)
         ls_label_data = export_tasks_blob_client.download_blob().readall()
         export_tasks_data = json.loads(ls_label_data)
-        for task_data in export_tasks_data:
-            task_json_name = f"task_data_v2_{task_data['id']}.json"
-            task_json_str = json.dumps(task_data, indent=4)
-            task_blob_client = flag_container_client.get_blob_client(blob=task_json_name)
-            task_blob_client.upload_blob(task_json_str, overwrite=True)
+
+        if debug:
+            print(f"EXPORTED TASKS:\n{len(export_tasks_data)}")
+        
+        return export_tasks_data
 
     except Exception as e:
         raise RuntimeError(f"Failed happen during loading labels step: {str(e)}")
@@ -92,6 +95,7 @@ def aux__overwrite_from_outside(debug=True):
 def export_tasks_and_annotations(debug=True):
     """
     Export tasks & annotations from Label Studio.
+    This step is required so tasks are loaded correctly into Label Studio.
 
     Args:
         debug (bool): Flag to print debug info.
@@ -162,7 +166,7 @@ def export_tasks_and_annotations(debug=True):
         export_tasks_json_name = f"export_tasks_and_annotations_{current_time}.json"
         export_tasks_data = get_tasks_export(export_tasks_json_name, debug=debug)
         for task_data in export_tasks_data:
-            task_json_name = f"task_data_v2_{task_data['id']}.json"
+            task_json_name = TASK_NAME_F(task_data['id'])
             # Prepare the task data.
             task_json_str = json.dumps(task_data, indent=4)
             # Store the task data in the blob.

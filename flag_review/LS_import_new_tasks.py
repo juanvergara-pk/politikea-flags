@@ -6,7 +6,7 @@ import subprocess
 from config import load_json_file
 from azure.storage.blob import BlobServiceClient
 from config import load_env_vars
-from LS_export_data_manually import get_tasks_export
+from LS_export_data_manually import get_tasks_export, TASK_NAME_F
 
 
 def get_individual_tasks(debug=True):
@@ -16,7 +16,7 @@ def get_individual_tasks(debug=True):
     task_data_dict = {}
     labelstudio_token = os.getenv("LABELSTUDIO_TOKEN")
     for task_id in range(1,10000):
-        task_json_name = f"task_data_{task_id}.json"
+        task_json_name = TASK_NAME_F(task_id)
         if task_json_name in os.listdir():
             os.remove(task_json_name)
         sp = subprocess.run(f"curl -H 'Authorization: Token {labelstudio_token}' -H 'Content-Type: application/json'  -X GET 'http://localhost:8080/api/tasks/{task_id}/' -o {task_json_name}", shell=True)
