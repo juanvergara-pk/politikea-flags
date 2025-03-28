@@ -98,20 +98,42 @@ def detect_borders(image, min_line_length=100, iterations=2, kernel_len=30, edge
 
 
     # Step 9: Count pixels near the edges
-    horizontal_line_sum, _ = count_border_pixels(filtered_lines_h, edge_width=int(height*edge_perc))
-    _, vertical_line_sum = count_border_pixels(filtered_lines_v, edge_width=int(width*edge_perc))
+    _, _, top_sum, bottom_sum = _count_border_pixels(filtered_lines_h, edge_width=int(height*edge_perc))
+    horizontal_line_sum = top_sum + bottom_sum
+    left_sum, right_sum, _, _ = _count_border_pixels(filtered_lines_v, edge_width=int(width*edge_perc))
+    vertical_line_sum = left_sum + right_sum
 
-    # Step 10: Create a classification based on the border sums
+    # Step 9.1: Create a classification based on the border sums
+    # Algo Params: Border Detection.
+    high_score = 5000
+    middle_score = 1000
+    low_score = 100
+    # Algo Params: Pixel Deviation Along Edges.
+    narrow_edge_perc = 0.07
+    threshold = 10.0
     image_has_border = False
-    if horizontal_line_sum > 5000:
-        if vertical_line_sum > 100:
+    # Score based on the border sums first, and then check the pixel deviation along the edges.
+    if horizontal_line_sum > high_score:
+        if vertical_line_sum > low_score:
+            #image_has_border = True
+            _, _, top_dev, bottom_dev = _get_px_dev_per_edge(image, edge_perc=narrow_edge_perc)
+            print(f"Top Dev: {top_dev}, Bottom Dev: {bottom_dev}")
+            if top_dev < threshold and bottom_dev < threshold:
+                image_has_border = True
+    if vertical_line_sum > high_score:
+        if horizontal_line_sum > low_score:
+            #image_has_border = True
+            left_dev, right_dev, _, _ = _get_px_dev_per_edge(image, edge_perc=narrow_edge_perc)
+            print(f"Left Dev: {left_dev}, Right Dev: {right_dev}")
+            if left_dev < threshold and right_dev < threshold:
+                image_has_border = True
+    if horizontal_line_sum > middle_score and vertical_line_sum > middle_score:
+        #image_has_border = True
+        left_dev, right_dev, top_dev, bottom_dev = _get_px_dev_per_edge(image, edge_perc=narrow_edge_perc)
+        print(f"Left Dev: {left_dev}, Right Dev: {right_dev}, Top Dev: {top_dev}, Bottom Dev: {bottom_dev}")
+        if (left_dev < threshold and right_dev < threshold) or (top_dev < threshold and bottom_dev < threshold):
             image_has_border = True
-    elif vertical_line_sum > 5000:
-        if horizontal_line_sum > 100:
-            image_has_border = True
-    elif horizontal_line_sum > 1000 and vertical_line_sum > 1000:
-        image_has_border = True
-
+    
     # Step 10: Return the line sums for borders
     if debug:
         print(f"Horizontal Line Sum (Edges): {horizontal_line_sum}")
@@ -120,7 +142,7 @@ def detect_borders(image, min_line_length=100, iterations=2, kernel_len=30, edge
     return image_has_border, (horizontal_line_sum, vertical_line_sum), output_image
 
 
-def count_border_pixels(img, edge_width=500):
+def _count_border_pixels(img, edge_width=500):
     """
     Count white pixels in the border regions of an image.
     Args:
@@ -139,6 +161,61 @@ def count_border_pixels(img, edge_width=500):
     right_edge = img[:, -edge_width:]
     # Sum white pixels in each region
     return (
-        np.sum(top_edge == 255) + np.sum(bottom_edge == 255),
-        np.sum(left_edge == 255) + np.sum(right_edge == 255),
+        np.sum(left_edge == 255),
+        np.sum(right_edge == 255),
+        np.sum(top_edge == 255),
+        np.sum(bottom_edge == 255),
     )
+
+
+def _get_px_dev_per_edge(image, edge_perc=0.07, debug=False):
+
+    # Read the image size
+    height, width, color_depth = image.shape
+
+    # Convert to grayscale if necessary
+    if color_depth == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    elif color_depth == 1:
+        gray = image
+    else:
+        raise ValueError("Invalid image color depth. Must be 1 or 3.")
+
+    # Apply Gaussian Blur to reduce noise
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Calculate the standard deviation of pixel values along the edges
+    edge_width = int(width * edge_perc)
+    edge_height = int(height * edge_perc)
+
+
+    # Check the standard deviation of pixel values along the edges
+
+    # CHECK TOP EDGE. FLATTEN. CALCULATE STD DEV
+    top_edge = gray[:edge_height, :]
+    top_edge = top_edge.reshape(edge_height * width)
+    top_edge_dev = np.std(top_edge)
+
+    # CHECK BOTTOM EDGE. FLATTEN. CALCULATE STD DEV
+    bottom_edge = gray[(height-edge_height):, :]
+    bottom_edge = bottom_edge.reshape(edge_height * width)
+    bottom_edge_dev = np.std(bottom_edge)
+
+    # CHECK LEFT EDGE. FLATTEN. CALCULATE STD DEV
+    left_edge = gray[:, :edge_width]
+    left_edge = left_edge.reshape(height * edge_width)
+    left_edge_dev = np.std(left_edge)
+
+    # CHECK RIGHT EDGE. FLATTEN. CALCULATE STD DEV
+    right_edge = gray[:, (width-edge_width):]
+    right_edge = right_edge.reshape(height * edge_width)
+    right_edge_dev = np.std(right_edge)
+
+    return (
+        left_edge_dev,
+        right_edge_dev,
+        top_edge_dev,
+        bottom_edge_dev
+    )
+
