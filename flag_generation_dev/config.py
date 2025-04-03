@@ -11,8 +11,8 @@ def load_env_vars(config=None):
     if not config:
         config = load_json_file('config.json')
     ## Load OpenAI API Key and Endpoint
-    #os.environ["AZURE_OPENAI_API_KEY"]=config['AZURE_OPENAI_API_KEY']
-    #os.environ["AZURE_OPENAI_ENDPOINT"]=config['AZURE_OPENAI_ENDPOINT']
+    os.environ["AZURE_OPENAI_API_KEY"]=config['AZURE_OPENAI_API_KEY']
+    os.environ["AZURE_OPENAI_ENDPOINT"]=config['AZURE_OPENAI_ENDPOINT']
     # Blob Storage Connection String
     os.environ["AZURE_STORAGE_CONNECTION_STRING"] = config["AZURE_STORAGE_CONNECTION_STRING"]
     os.environ["AZURE_STORAGE_ACCOUNT"] = config['AZURE_STORAGE_ACCOUNT']
