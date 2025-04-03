@@ -7,7 +7,7 @@ import requests
 import random
 import numpy as np
 from openai import AzureOpenAI
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, BlobSasPermissions, generate_blob_sas
 try:
     from flag_generation.border_detection import detect_borders
 except:
@@ -173,6 +173,7 @@ def store_flag_image(image_data, img_params, save_metadata=False, img_has_border
         blob_url = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
         storage_account = os.getenv("AZURE_STORAGE_ACCOUNT")
         container_name = os.getenv("CONTAINER_NAME")
+        account_key = os.getenv("AZURE_STORAGE_KEY")
 
         ## Download the image.
         #image_data = requests.get(image_url).content
@@ -194,8 +195,23 @@ def store_flag_image(image_data, img_params, save_metadata=False, img_has_border
             metadata_blob_client = blob_service_client.get_blob_client(container=container_name, blob=metadata_blob_name)
             metadata_blob_client.upload_blob(metadata, overwrite=True)
 
-        # Construct the correct public URL
-        blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{image_name}"
+        # Get a sharable link with a SAS token with read access.
+        #blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{image_name}"
+        blob_url = blob_client.url
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        # Generate SAS token
+        sas_token = generate_blob_sas(
+            account_name=storage_account,
+            container_name=container_name,
+            blob_name=image_name,
+            account_key=account_key,
+            permission=BlobSasPermissions(read=True),
+            # 100 years PETICION JUAN CARDELUS Y JOSE MONTES. Que Dios nos coja confesados.
+            expiry=current_time + datetime.timedelta(weeks=5600),
+            start=current_time,
+        )
+        # Append SAS token to the blob URL.
+        blob_url = blob_client.url + "?" + sas_token
 
         return blob_url, img_params
     
