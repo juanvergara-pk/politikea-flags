@@ -2,6 +2,7 @@ import os
 import datetime
 import re
 import cv2
+import json
 import requests
 import random
 import numpy as np
@@ -61,16 +62,17 @@ def generate_flag_wout_borders(element: str, style: str, color: str, item: str, 
     """
     try:
         for _ in range(n_attempts):
-            stored_image_url, img_has_borders = generate_and_store_flag(element, style, color, item)
+            stored_image_url, img_params = generate_and_store_flag(element, style, color, item)
+            img_has_borders = img_params["has_borders"]
             if not img_has_borders:
                 return stored_image_url
-        return stored_image_url
+        return stored_image_url # TODO: Add img_params to function app if wanting to return more stuff.
 
     except Exception as e:
         raise RuntimeError(f"Failed to batch img generation & storage: {str(e)}")
 
 
-def generate_and_store_flag(element: str, style: str, color: str, item: str) -> str:
+def generate_and_store_flag(element: str, style: str, color: str, item: str, save_metadata: bool = False) -> str:
     """
     Generates an OpenAI image for a flag and stores it in Azure Blob Storage.
 
@@ -85,7 +87,7 @@ def generate_and_store_flag(element: str, style: str, color: str, item: str) -> 
     """
     try:
         # Create image.
-        image_url = create_flag(element, style, color, item)
+        image_url, og_prompt, rev_prompt = create_flag(element, style, color, item)
         # Download the image.
         image_data = requests.get(image_url).content
         image = np.asarray(bytearray(image_data), dtype="uint8")
@@ -94,13 +96,16 @@ def generate_and_store_flag(element: str, style: str, color: str, item: str) -> 
         img_has_borders, borders_sum, out_img = detect_borders(image)
         # Store img in azure.
         img_params = {
+            "original_prompt": og_prompt,
+            "revised_prompt": rev_prompt,
+            "has_borders": img_has_borders,
             "element": element,
             "style": style,
             "color": color,
             "item": item
         }
-        stored_image_url = store_flag_image(image_data, img_params, img_has_borders)
-        return stored_image_url, img_has_borders
+        stored_image_url, img_params = store_flag_image(image_data, img_params, save_metadata, img_has_borders)
+        return stored_image_url, img_params
 
     except Exception as e:
         raise RuntimeError(f"Failed to generate and store image: {str(e)}")
@@ -130,7 +135,7 @@ def create_flag(element: str, style: str, color: str, item: str) -> str:
         #    f"The image must be harmoniously balanced. The image must include: "
         #    f"An {animal}, The color {color}, and {object}."
         #)
-        prompt = (
+        prompt_f = lambda element, style, color, item: (
             f"I want a rectangular horizontal image. "
             f"It must have a {style} style. The image must not be too cluttered. "
             f"The image must be harmoniously balanced. The image must include: "
@@ -138,23 +143,27 @@ def create_flag(element: str, style: str, color: str, item: str) -> str:
         )
         # PROMPT REWRITING: https://platform.openai.com/docs/guides/images#dall-e-3-prompting
         base_prompt = "" #"I NEED to test how the tool works with extremely simple prompts. DO NOT add any detail, just use it AS-IS:"
-        prompt = base_prompt + prompt
+        prompt = base_prompt + prompt_f(element, style, color, item)
         # WHAT's NEW WITH DALL-E-3: https://cookbook.openai.com/articles/what_is_new_with_dalle_3
         
-        image_url = call_openai_img_endpoint(prompt)
-        return image_url
+        image_url, revised_prompt = call_openai_img_endpoint(prompt)
+
+        return image_url, prompt, revised_prompt
     
     except Exception as e:
         raise RuntimeError(f"Failed to generate image: {str(e)}")
 
 
-def store_flag_image(image_data, img_params, img_has_borders=False) -> str:
+def store_flag_image(image_data, img_params, save_metadata=False, img_has_borders=False) -> str:#
     """
     Downloads an image from OpenAI and uploads it to Azure Blob Storage.
 
     Args:
         image_data (img_data): The generated image in raw bytes format, ready
                                for Azure Storage.
+        img_params (dict): A dictionary containing the image parameters.
+        save_metadata (bool): A flag to save the image metadata in Azure Blob Storage.
+        img_has_borders (bool): A flag indicating if the image has borders.
 
     Returns:
         str: The public URL of the stored image in Azure Blob Storage.
@@ -169,6 +178,7 @@ def store_flag_image(image_data, img_params, img_has_borders=False) -> str:
         #image_data = requests.get(image_url).content
         #image_name = "futuristic_city.png"
         image_name = create_img_name(img_params, img_has_borders)
+        img_params["image_name"] = image_name
 
         # Create a blob service client
         blob_service_client = BlobServiceClient.from_connection_string(blob_url)
@@ -177,10 +187,17 @@ def store_flag_image(image_data, img_params, img_has_borders=False) -> str:
         # Upload the created file
         blob_client.upload_blob(image_data, overwrite=True)
 
+        if save_metadata:
+            # Store image metadata (img_params) in json format. Includes the revised prompt.
+            metadata = json.dumps(img_params)
+            metadata_blob_name = image_name.replace(".png", ".json")
+            metadata_blob_client = blob_service_client.get_blob_client(container=container_name, blob=metadata_blob_name)
+            metadata_blob_client.upload_blob(metadata, overwrite=True)
+
         # Construct the correct public URL
         blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{image_name}"
 
-        return blob_url
+        return blob_url, img_params
     
     except Exception as e:
         raise RuntimeError(f"Failed to store image: {str(e)}")
@@ -225,8 +242,9 @@ def call_openai_img_endpoint(prompt):
 
     #image_url = json.loads(response.model_dump_json())['data'][0]['url']
     image_url = response.data[0].url
+    revised_prompt = response.data[0].revised_prompt
 
-    return image_url
+    return image_url, revised_prompt
 
 
 if __name__ == "__main__":
