@@ -247,14 +247,25 @@ def call_openai_img_endpoint(prompt):
         api_key=os.getenv("AZURE_OPENAI_API_KEY"),  
         api_version="2024-02-01"
     )
-
-    response = client.images.generate(
-        model="dall-e-3",
-        prompt=prompt,
-        size="1792x1024", # Only dall-e-3 supports non-square images.
-        quality="standard", # dall-e-3 supports quality "hd" (on top of "standard").
-        n=1 # Only dall-e-2 supports > 1 image per deployment.
-    )
+    # Call client endpoint to generate image.
+    max_retries = 5 # Retry if timeout is reached.
+    for attempt in range(max_retries):
+        try:
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                size="1792x1024", # Only dall-e-3 supports non-square images.
+                quality="standard", # dall-e-3 supports quality "hd" (on top of "standard").
+                n=1, # Only dall-e-2 supports > 1 image per deployment.
+                timeout=60
+            )
+            break  # Exit loop if successful
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                print(f"Timeout occurred at OpenAI img generation step, retrying... (Attempt {attempt + 1}/{max_retries})")
+                continue  # Retry if not the last attempt
+            else:
+                raise RuntimeError(f"OpenAI image endpoint timed out after {max_retries} retries.")
 
     #image_url = json.loads(response.model_dump_json())['data'][0]['url']
     image_url = response.data[0].url
